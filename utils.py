@@ -1,5 +1,3 @@
-# import numpy as np
-# from PIL import Image
 from imports import *
 
 R = Y = 0
@@ -136,35 +134,55 @@ def PSNR(image1, image2, component):
     MSE = 0
     for i in range(H):
         for j in range(W):
-            MSE += (image1[i][j][component] - image2[i][j][component]) ** 2
-    MSE /= (H * W * 3)
+            MSE += (int(image1[i][j][component]) - int(image2[i][j][component])) ** 2
     return 10 * np.log10(W * H * (2 ** L - 1) ** 2 / MSE)
 
 
-def decimate_odd_rows_cols(YCbCR_image):
+def decimate_odd_rows_cols(YCbCR_image, times=2):
     H = YCbCR_image.shape[0]
     W = YCbCR_image.shape[1]
     for i in range(H):
         for j in range(W):
-            if not (i % 2 == 0 and j % 2 == 0):
+            if not (i % times == 0 and j % times == 0):
                 YCbCR_image[i][j][Cb] = 0
                 YCbCR_image[i][j][Cr] = 0
     return YCbCR_image
 
 
-def decimate_mean(YCbCR_image):
+def decimate_mean(YCbCR_image, times=2):
     H = YCbCR_image.shape[0]
     W = YCbCR_image.shape[1]
-    for i in range(H, 2):
-        for j in range(W, 2):
+    for i in range(0, H, times):
+        for j in range(0, W, times):
             average_Cb = 0
             average_Cr = 0
-            for k in range(2):
-                for l in range(2):
+            for k in range(times):
+                for l in range(times):
                     average_Cb += YCbCR_image[i + k][j + l][Cb]
                     average_Cr += YCbCR_image[i + k][j + l][Cr]
                     YCbCR_image[i + k][j + l][Cb] = 0
                     YCbCR_image[i + k][j + l][Cr] = 0
-            YCbCR_image[i][j][Cb] = average_Cb//4
-            YCbCR_image[i][j][Cr] = average_Cr//4
+            YCbCR_image[i][j][Cb] = average_Cb // times ** 2
+            YCbCR_image[i][j][Cr] = average_Cr // times ** 2
     return YCbCR_image
+
+
+def entropy(p):
+    H = 0
+    for i in range(len(p)):
+        if p[i] == 0:
+            continue
+        H += p[i] * np.log2(p[i])
+    return -H
+
+
+def get_prediction_pixel(rule, img, i, j, component):
+    match rule:
+        case 1:
+            return img[i][j - 1][component]
+        case 2:
+            return img[i - 1][j][component]
+        case 3:
+            return img[i - 1][j - 1][component]
+        case 4:
+            return (img[i][j - 1][component] + img[i - 1][j][component] + img[i - 1][j - 1][component]) // 3
